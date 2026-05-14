@@ -1,6 +1,13 @@
 import numpy as np
 from connect4.policy import Policy
-from typing import override
+try:
+    from typing import override
+except ImportError:  # Python < 3.12
+    try:
+        from typing_extensions import override
+    except ImportError:
+        def override(func):
+            return func
 
 
 class OhYes(Policy):

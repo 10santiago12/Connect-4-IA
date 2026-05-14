@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import os
+import time
 try:
     from typing import override
 except ImportError:  # Python < 3.12
@@ -210,8 +211,20 @@ class FVMCPolicy(Policy):
     # ------------------------------------------------------------ Policy API
 
     @override
-    def mount(self) -> None:
+    def mount(self, *args, **_kwargs) -> None:
         """Train offline. Loads from cache if available, otherwise trains from scratch."""
+        time_budget = None
+        if args:
+            first = args[0]
+            if isinstance(first, (int, float)) and first > 0:
+                time_budget = float(first)
+        deadline = None
+        if time_budget is not None:
+            deadline = time.monotonic() + time_budget
+
+        def _time_up() -> bool:
+            return deadline is not None and time.monotonic() >= deadline
+
         if self.cache_path and os.path.exists(self.cache_path):
             with open(self.cache_path, "rb") as f:
                 data = pickle.load(f)
@@ -221,11 +234,15 @@ class FVMCPolicy(Policy):
 
         # Phase 1: learn basics against random opponent (both colors)
         for i in range(self.n_episodes_vs_random):
+            if _time_up():
+                return
             color = -1 if i % 2 == 0 else 1
             self._run_episode_vs_random(color)
 
         # Phase 2: self-play refinement (Alternating Markov Game style)
         for _ in range(self.n_episodes_self_play):
+            if _time_up():
+                return
             self._run_episode_self_play()
 
         if self.cache_path:
@@ -241,16 +258,23 @@ class FVMCPolicy(Policy):
           2. Block opponent's immediate win.
           3. Prefer center columns.
         """
-        free = self._free_cols(s)
+        board = np.asarray(s)
 
         # Detect which player we are from the board balance
-        red_count = np.sum(s == -1)
-        yellow_count = np.sum(s == 1)
+        red_count = np.sum(board == -1)
+        yellow_count = np.sum(board == 1)
         my_color = -1 if red_count == yellow_count else 1  # Red moves first
-        board_pov = s * my_color
+        board_pov = board * my_color
+
+        state = ConnectState(board, my_color)
+        if state.is_final():
+            return 0
+        free = state.get_free_cols()
+        if not free:
+            return 0
 
         # Avoid moves that give opponent an immediate win
-        safe = [c for c in free if not self._opponent_can_win_next(s, my_color, c)]
+        safe = [c for c in free if not self._opponent_can_win_next(board, my_color, c)]
         candidates = safe if safe else free
 
         # Check if this state has been seen during training (use POV key)
@@ -262,7 +286,9 @@ class FVMCPolicy(Policy):
 
         # 1. Win immediately
         for col in candidates:
-            state = ConnectState(s, my_color)
+            state = ConnectState(board, my_color)
+            if not state.is_applicable(col):
+                continue
             next_state = state.transition(col)
             if next_state.get_winner() == my_color:
                 return col
@@ -270,7 +296,7 @@ class FVMCPolicy(Policy):
         # 2. Block opponent win
         opp = -my_color
         for col in candidates:
-            state = ConnectState(s, opp)
+            state = ConnectState(board, opp)
             if state.is_applicable(col):
                 next_state = state.transition(col)
                 if next_state.get_winner() == opp:
