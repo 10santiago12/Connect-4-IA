@@ -1,7 +1,6 @@
 import numpy as np
 from connect4.policy import Policy
 from connect4.connect_state import ConnectState
-from typing import override
 
 
 class FlatMonteCarlo(Policy):
@@ -11,19 +10,24 @@ class FlatMonteCarlo(Policy):
         self.N = N
         self.rng = np.random.default_rng()
 
-    @override
-    def mount(self) -> None:
+    def mount(self, timeout=None) -> None:
         # Se llama una vez antes de cada partida; reiniciamos el generador aleatorio
         self.rng = np.random.default_rng()
 
-    @override
     def act(self, board: np.ndarray) -> int:
+        # Columnas legales directamente del tablero (fila 0 libre)
+        legal_cols = [c for c in range(7) if board[0, c] == 0]
+        if not legal_cols:
+            return 0
+
         # Inferimos el jugador actual: Red (-1) mueve primero.
         # Si ambos tienen igual cantidad de fichas, es turno de Red; si no, de Yellow.
         current_player = -1 if np.sum(board == -1) == np.sum(board == 1) else 1
         state = ConnectState(board=board, player=current_player)
 
-        legal_cols = state.get_free_cols()
+        # Si el estado ya es final, devolvemos la primera columna legal
+        if state.is_final():
+            return legal_cols[0]
 
         # --- Flat Monte Carlo ---
         # Para cada accion legal a, estimamos q^(s, a) como la media empirica
