@@ -8,7 +8,7 @@ participants = find_importable_classes("groups", Policy)
 # Build a participant list (name, class) for GUTI vs JUAN
 players = [
     ("Group B GUTI", participants["Group B GUTI"]),
-    ("Group A JUAN", participants["Group A JUAN"]),
+    ("Group C SANTI", participants["Group C SANTI"]),
 ]
 
 # Run the tournament

@@ -1,4 +1,5 @@
 from typing import Callable
+from pathlib import Path
 from connect4.dtos import Game, Match, Participant, Versus
 from connect4.connect_state import ConnectState
 import numpy as np
@@ -116,7 +117,9 @@ def play(
 
     # Save to file
     match_filename = f"match_{a_name}_vs_{b_name}.json"
-    with open("versus/" + match_filename, "w") as f:
+    output_dir = Path("versus")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(output_dir / match_filename, "w") as f:
         f.write(match.model_dump_json(indent=4))
 
     if a_wins > 0 or b_wins > 0:
