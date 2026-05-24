@@ -110,7 +110,6 @@ class FVMCPolicy(Policy):
 
     #La que toma decisiones reales durante elk juego: filtrar jugadas perdedoras, luego ganar/bloquear, luego greedy Q-table.
 
->>>>>>> origin/main
     def act(self, s: np.ndarray) -> int:
         board = np.asarray(s)
         my = -1 if np.sum(board == -1) == np.sum(board == 1) else 1
