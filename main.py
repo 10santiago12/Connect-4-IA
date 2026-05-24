@@ -5,7 +5,7 @@ from tournament import run_tournament, play
 # Read all files within subfolder of "groups"
 participants = find_importable_classes("groups", Policy)
 
-# Build a participant list (name, class) for GUTI vs JUAN
+# Build a participant list (name, class) for GUTI vs SANTI
 players = [
     ("Group B GUTI", participants["Group B GUTI"]),
     ("Group C SANTI", participants["Group C SANTI"]),
