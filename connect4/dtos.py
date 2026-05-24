@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 from connect4.policy import Policy
 import numpy as np
@@ -5,7 +7,7 @@ import numpy as np
 State = np.ndarray
 Action = int
 Participant = tuple[str, Policy]
-Versus = list[tuple[Participant | None, Participant | None]]
+Versus = list[tuple[Optional[Participant], Optional[Participant]]]
 
 
 class Game(list[tuple[State, Action]]):

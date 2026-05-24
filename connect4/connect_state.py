@@ -2,7 +2,7 @@
 from connect4.environment_state import EnvironmentState
 
 # Types
-from typing import Any
+from typing import Any, Optional
 
 # Libraries
 import numpy as np
@@ -13,7 +13,7 @@ class ConnectState(EnvironmentState):
     ROWS = 6
     COLS = 7
 
-    def __init__(self, board: np.ndarray | None = None, player: int = -1):
+    def __init__(self, board: Optional[np.ndarray] = None, player: int = -1):
         if board is None:
             self.board = np.zeros((self.ROWS, self.COLS), dtype=int)
         else:
@@ -96,7 +96,7 @@ class ConnectState(EnvironmentState):
 
         return ConnectState(new_board, -self.player)
 
-    def show(self, size: int = 1500, ax: plt.Axes | None = None) -> None:
+    def show(self, size: int = 1500, ax: Optional[plt.Axes] = None) -> None:
         if ax is None:
             fig, ax = plt.subplots()
         else:
