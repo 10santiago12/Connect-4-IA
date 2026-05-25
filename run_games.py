@@ -9,7 +9,7 @@ from connect4.policy import Policy
 
 # ── Configuracion ──────────────────────────────────────────────────────────────
 PLAYER_A   = "Group C SANTI"   # CARPETA DEL AGENTE 1
-PLAYER_B   = "Group D RANDOM"   # CARPETA DEL AGENTE 2
+PLAYER_B   = "Group A JUAN"   # CARPETA DEL AGENTE 2
 N_GAMES    = 10
 # ──────────────────────────────────────────────────────────────────────────────
 
