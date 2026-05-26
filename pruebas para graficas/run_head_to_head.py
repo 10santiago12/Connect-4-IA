@@ -7,7 +7,12 @@ Genera results_h2h.json para el notebook.
 import importlib.util
 import json
 import os
+import sys
 import numpy as np
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 from connect4.connect_state import ConnectState
 
 def _load_policy_class(module_path, class_name):
@@ -20,8 +25,8 @@ FVMCPolicy = _load_policy_class("groups/Group C SANTI/policy.py", "FVMCPolicy")
 FlatMonteCarlo = _load_policy_class("groups/Group A JUAN/policy.py", "FlatMonteCarlo")
 QLearningAgent = _load_policy_class("groups/Group B GUTI/policy.py", "QLearningAgent")
 
-N_GAMES = 50  # cambia este valor si quieres mas partidas
-FLATMC_N = 20  # rollouts por accion en FlatMonteCarlo (menor = mas rapido)
+N_GAMES = 10 # cambia este valor si quieres mas partidas
+FLATMC_N = 200  # rollouts por accion en FlatMonteCarlo (menor = mas rapido)
 
 def evaluate_head_to_head(agent_a, agent_b, name_a, name_b, n_games=200):
     """Enfrenta dos agentes ya montados, alternando colores."""
