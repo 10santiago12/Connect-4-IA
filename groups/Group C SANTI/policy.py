@@ -3,141 +3,151 @@ import pickle, os, time
 from connect4.policy import Policy
 from connect4.connect_state import ConnectState
 
-
-def _pack(board_pov: np.ndarray) -> bytes:
-    """Codifica tablero 6×7 en 11 bytes (2 bits/celda)."""
+def _pack(b: np.ndarray) -> bytes:
     out = 0
-    for v in (board_pov.ravel() + 1).astype(np.uint8):
-        out = (out << 2) | int(v)
+    for v in (b.ravel() + 1).astype(np.uint8): out = (out << 2) | int(v)
     return out.to_bytes(11, 'big')
 
+CENTER = np.array([0.0, 0.1, 0.2, 0.3, 0.2, 0.1, 0.0], dtype=np.float32)
+
+def _heuristic(board: np.ndarray, color: int) -> float:
+    """Valor parcial del tablero: cuenta amenazas de 3 en raya propias vs oponente."""
+    b, rows, cols, score = board * color, 6, 7, 0.0
+    def threats(sign):
+        t = 0
+        for r in range(rows):
+            for c in range(cols - 3):
+                w = b[r, c:c+4]
+                if np.sum(w == sign) == 3 and np.sum(w == 0) == 1: t += 1
+        for r in range(rows - 3):
+            for c in range(cols):
+                w = b[r:r+4, c]
+                if np.sum(w == sign) == 3 and np.sum(w == 0) == 1: t += 1
+        for r in range(rows - 3):
+            for c in range(cols - 3):
+                w = [b[r+i, c+i] for i in range(4)]
+                if w.count(sign) == 3 and w.count(0) == 1: t += 1
+            for c in range(3, cols):
+                w = [b[r+i, c-i] for i in range(4)]
+                if w.count(sign) == 3 and w.count(0) == 1: t += 1
+        return t
+    score = (threats(1) - threats(-1)) * 0.05
+    return float(np.clip(score, -0.5, 0.5))
 
 class FVMCPolicy(Policy):
-    """
-    Agente Connect-4 — First-Visit Monte Carlo + GPI (clase 11-12).
-
-    - Perspectiva normalizada: tablero siempre desde POV del jugador activo
-    → un Q-table compartido para ambos colores (Alternating Markov Game).
-    - Exploración por win-probability: π(a|s) ∝ Q(s,a).
-    - Almacenamiento compacto: key 11 bytes (bit-pack) + array float32 fusionado
-    sum_0..sum_6 | count_0..count_6] por estado.
-    """
-
-    def __init__(self, n_vs_random=60_000, n_self_play=20_000, cache="fvmc_qtable.pkl"):
+    def __init__(self, n_vs_random=40_000, n_self_play=80_000,
+                 ucb_c=0.6, heuristic_w=0.4, cache="fvmc_qtable.pkl", seed=None):
         self.n_vs_random = n_vs_random
         self.n_self_play = n_self_play
+        self.ucb_c = ucb_c
+        self.heuristic_w = heuristic_w  # peso de la heurística vs recompensa final
         self.cache = cache
-        self._qt: dict[bytes, np.ndarray] = {}  # key → float32(14,)
+        self._qt: dict[bytes, np.ndarray] = {}
+        self._rng = np.random.default_rng(seed)
+        self._seed = seed
 
-    # ── Q-table ops ───────────────────────────────────────────────────────────
-    
-    def _q(self, key: bytes) -> np.ndarray:
-        if key not in self._qt:
-            self._qt[key] = np.array([0.5]*7 + [1.0]*7, dtype=np.float32)
+    def _canon(self, b: np.ndarray) -> tuple[bytes, bool]:
+        k, m = _pack(b), _pack(b[:, ::-1])
+        return (m, True) if m < k else (k, False)
+
+    def _mc(self, col: int) -> int:
+        return ConnectState.COLS - 1 - col
+
+    def _q(self, key: bytes) -> tuple[np.ndarray, np.ndarray]:
+        if key not in self._qt: self._qt[key] = np.zeros(14, dtype=np.float32)
         d = self._qt[key]
-        return d[:7] / np.maximum(d[7:], 1.0) 
-    #Recorre todos los movimientos de la trayectoria, actualizando la Q-table con la recompensa G obtenida al final del episodio. Para cada estado (key) y acción (col), acumula la suma de recompensas y el conteo de visitas para calcular la probabilidad de victoria.
-    def _update(self, traj: list, G: float) -> None:
+        return d[:7] / np.maximum(d[7:], 1.0), d[7:]
+
+    def _update(self, traj: list[tuple[bytes, int]], g: float) -> None:
         seen = set()
-        for key, col in traj:
-            if (key, col) in seen: continue
-            seen.add((key, col))
-            if key not in self._qt:
-                self._qt[key] = np.array([0.5]*7 + [1.0]*7, dtype=np.float32)
-            self._qt[key][col] += G
-            self._qt[key][col + 7] += 1.0
+        for key, col in reversed(traj):
+            if (key, col) not in seen:
+                seen.add((key, col))
+                if key not in self._qt: self._qt[key] = np.zeros(14, dtype=np.float32)
+                self._qt[key][col] += g
+                self._qt[key][col + 7] += 1.0
 
-    # ── acción exploratoria ───────────────────────────────────────────────────
-    
-    #le da mas peso a las acciones con mayor probabilidad de victoria, pero mantiene algo de aleatoriedad para explorar el espacio de estados.
-    def _explore(self, board_pov: np.ndarray, free: list) -> int:
-        q = self._q(_pack(board_pov))
-        w = np.maximum(q[free], 1e-6); w /= w.sum()
-        return int(np.random.choice(free, p=w))
+    def _pick(self, key: bytes, free_c: list[int], exploit: bool = False) -> int:
+        q, n = self._q(key)
+        if exploit:
+            return int(free_c[int(np.argmax(q[free_c] + CENTER[free_c]))])
+        unvisited = [c for c in free_c if n[c] == 0]
+        if unvisited: return int(self._rng.choice(unvisited))
+        bonus = self.ucb_c * np.sqrt(np.log(np.sum(n[free_c])) / np.maximum(n[free_c], 1))
+        return int(free_c[int(np.argmax(q[free_c] + bonus + CENTER[free_c]))])
 
-    # ── episodios ─────────────────────────────────────────────────────────────
+    def _act_c(self, b: np.ndarray, free: list[int], exploit: bool = False) -> tuple[int, bytes, int]:
+        key, mir = self._canon(b)
+        fc = [self._mc(c) if mir else c for c in free]
+        bc = self._pick(key, fc, exploit)
+        return (self._mc(bc) if mir else bc), key, bc
 
-    #Vs agente random : alternar colores cada episodio para balancear experiencia.
-
-    def _ep_vs_random(self, color: int) -> None:
-        state, traj, first = ConnectState(), [], True
+    def _episode(self, color: int, opp=None) -> None:
+        """color: jugador que aprende. opp=None → self-play."""
+        state, trajs, first = ConnectState(), {-1: [], 1: []}, True
         while not state.is_final():
-            free = state.get_free_cols()
-            if state.player == color:
-                bpov = state.board * color
-                col = int(np.random.choice(free)) if first else self._explore(bpov, free)
-                first = False
-                traj.append((_pack(bpov), col))
-            else:
-                col = int(np.random.choice(free))
-            state = state.transition(col)
-        w = state.get_winner()
-        self._update(traj, 1.0 if w == color else (0.0 if w == 0 else -1.0))
-    
-    #Vs el mismo agente: ambos jugadores siguen la política actual. 
-
-    def _ep_self_play(self) -> None:
-        state, trajs = ConnectState(), {-1: [], 1: []}
-        while not state.is_final():
-            p = state.player
+            p, free = state.player, state.get_free_cols()
             bpov = state.board * p
-            free = state.get_free_cols()
-            col = self._explore(bpov, free)
-            trajs[p].append((_pack(bpov), col))
+            if opp and p != color:
+                col = opp(state, p)
+            else:
+                if first and p == color:
+                    col = int(self._rng.choice(free))  # Exploring Starts
+                    key, mir = self._canon(bpov)
+                    col_c = self._mc(col) if mir else col
+                    first = False
+                else:
+                    col, key, col_c = self._act_c(bpov, free)
+                trajs[p].append((key, col_c))
             state = state.transition(col)
         w = state.get_winner()
-        for p in (-1, 1):
-            self._update(trajs[p], 1.0 if w == p else (0.0 if w == 0 else -1.0))
-
-    # ── Policy API ────────────────────────────────────────────────────────────
-
-    #Montar la política: generar experiencia y entrenar Q-table (guardada en archivo .pkl). Si se da un argumento numérico, usarlo como timeout (segundos).
+        players = [color] if opp else [-1, 1]
+        for p in players:
+            r_final = (1.0 if w == p else 0.0 if w == 0 else -1.0)
+            r_heur  = _heuristic(state.board, p)
+            g = (1 - self.heuristic_w) * r_final + self.heuristic_w * r_heur
+            self._update(trajs[p], g)
 
     def mount(self, *args, **_kw) -> None:
+        if self._seed is None: self._rng = np.random.default_rng()
         if self.cache and os.path.exists(self.cache):
             with open(self.cache, "rb") as f: self._qt = pickle.load(f)
             return
         deadline = time.monotonic() + args[0] if args and isinstance(args[0], (int, float)) else None
         done = lambda: deadline and time.monotonic() >= deadline
         for i in range(self.n_vs_random):
-            if done(): break
-            self._ep_vs_random(-1 if i % 2 == 0 else 1)
-        for _ in range(self.n_self_play):
-            if done(): break
-            self._ep_self_play()
+            if done(): return
+            self._episode(-1 if i % 2 == 0 else 1, opp=lambda s, _: int(self._rng.choice(s.get_free_cols())))
+        third = self.n_self_play // 3
+        for i in range(self.n_self_play):
+            if done(): return
+            if i < third and self._rng.random() < 0.5:
+                self._episode(-1 if i % 2 == 0 else 1, opp=lambda s, _: int(self._rng.choice(s.get_free_cols())))
+            else:
+                self._episode(1)  # color irrelevante en self-play (trajs[p] para ambos)
         if self.cache:
             with open(self.cache, "wb") as f: pickle.dump(self._qt, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    #La que toma decisiones reales durante elk juego: filtrar jugadas perdedoras, luego ganar/bloquear, luego greedy Q-table.
-
     def act(self, s: np.ndarray) -> int:
         board = np.asarray(s)
-        my = -1 if np.sum(board == -1) == np.sum(board == 1) else 1
-        bpov = board * my
+        my = 1 if np.sum(board == 1) <= np.sum(board == -1) else -1
         cs = ConnectState(board, my)
-        if cs.is_final(): return 0
-        free = cs.get_free_cols()
-        if not free: return 0
-
-        # Filtrar jugadas que regalan victoria al oponente
-        def gives_opp_win(col):
-            after = ConnectState(board, my).transition(col)
-            opp = -my
-            for c in after.get_free_cols():
-                s = ConnectState(after.board, opp)
-                if s.is_applicable(c) and s.transition(c).get_winner() == opp:
-                    return True
-            return False
-        safe = [c for c in free if not gives_opp_win(c)]
-        cands = safe if safe else free
-
-        # 1. Si puedo ganar en esta jugada, la hago
-        for col in cands:
+        if cs.is_final() or not (free := cs.get_free_cols()): return 0
+        # Ganar inmediato
+        for col in free:
             if ConnectState(board, my).transition(col).get_winner() == my: return col
-        # 2. Si el oponente puede ganar en la siguiente jugada, bloqueo esa jugada
-        for col in cands:
-            if ConnectState(board, -my).is_applicable(col) and \
-               ConnectState(board, -my).transition(col).get_winner() == -my: return col
-        # 3. Consultar Q-table para elegir la jugada con mayor probabilidad de victoria
-        q = self._q(_pack(bpov))
-        return int(max(cands, key=lambda c: q[c]))
+        # Bloquear
+        for col in free:
+            ob = ConnectState(board, -my)
+            if ob.is_applicable(col) and ob.transition(col).get_winner() == -my: return col
+        # Evitar regalar victoria al turno siguiente
+        safe = [c for c in free if not any(
+            ConnectState(ConnectState(board, my).transition(c).board, -my).transition(c2).get_winner() == -my
+            for c2 in ConnectState(board, my).transition(c).get_free_cols()
+        )]
+        free = safe or free
+        # Q-table greedy
+        key, mir = self._canon(board * my)
+        q, _ = self._q(key)
+        fc = [self._mc(c) if mir else c for c in free]
+        return int(self._mc(fc[int(np.argmax(q[fc] + CENTER[fc]))]) if mir else fc[int(np.argmax(q[fc] + CENTER[fc]))])
