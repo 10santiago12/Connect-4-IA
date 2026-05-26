@@ -131,7 +131,7 @@ for ck in checkpoints:
 
 # ── Experimento 2: heuristic_w sweep ───────────────────────────────────────
 print("Exp 2: impacto de heuristic_w...")
-hw_values = [0.0, 0.2, 0.4, 0.6, 0.8]
+hw_values = [0.2, 0.4, 0.6]
 exp2 = {}
 for hw in hw_values:
     a = train_fresh(40_000, 80_000, heuristic_w=hw)
@@ -192,7 +192,7 @@ def exp5_qtable_coverage(FVMCPolicy, n_ep, n_eval=500):
 # ── Experimento 6: calidad de Q-values vs trials totales ───────────────────
 def exp6_trials_sweep(FVMCPolicy, n_bench=300):
     print("\n[6] Impacto de trials totales...")
-    trials_list = [5_000, 15_000, 30_000, 60_000, 100_000, 120_000]
+    trials_list = [15_000, 60_000, 120_000]
     results = []
     for n_ep in trials_list:
         agent = FVMCPolicy(n_vs_random=int(n_ep*0.67),
@@ -227,38 +227,6 @@ def exp6_trials_sweep(FVMCPolicy, n_bench=300):
         })
         print(f"  {n_ep:>7,} trials → WR amarillo={wr_y*100:.1f}%  rojo={wr_r*100:.1f}%  tabla={qt_size:,} estados")
     return results
-
-# ── Experimento 7: FVMC vs Flat Monte Carlo (JUAN) ─────────────────────────
-def exp7_vs_flatmc(FVMCPolicy, FlatMonteCarlo, n_games=200):
-    print("\n[7] FVMC vs Flat Monte Carlo (JUAN)...")
-    fvmc = FVMCPolicy(n_vs_random=40_000, n_self_play=80_000,
-                      heuristic_w=0.4, cache=None, seed=42)
-    flatmc = FlatMonteCarlo()
-    fvmc.mount()
-    flatmc.mount()
-    results, detail = evaluate_head_to_head(fvmc, flatmc, "FVMC", "FlatMC", n_games)
-    print(f"  FVMC={results['FVMC']}  FlatMC={results['FlatMC']}  Draw={results['Draw']}")
-    return {
-        "results": results,
-        "cumulative_wr_flatmc": _cumulative_wr(detail, "FlatMC"),
-        "n_games": n_games
-    }
-
-# ── Experimento 8: Flat Monte Carlo (JUAN) vs Q-Learning (GUTI) ────────────
-def exp8_vs_qlearning(FlatMonteCarlo, QLearningAgent, n_games=200):
-    print("\n[8] Flat Monte Carlo (JUAN) vs Q-Learning (GUTI)...")
-    flatmc = FlatMonteCarlo()
-    ql = QLearningAgent()
-    flatmc.mount()
-    ql.mount()
-    results, detail = evaluate_head_to_head(flatmc, ql, "FlatMC", "QLearning", n_games)
-    print(f"  FlatMC={results['FlatMC']}  QLearning={results['QLearning']}  Draw={results['Draw']}")
-    return {
-        "results": results,
-        "cumulative_wr_flatmc": _cumulative_wr(detail, "FlatMC"),
-        "n_games": n_games
-    }
-
 # ── Guardar ────────────────────────────────────────────────────────────────
 results = {
     "generated_at": time.strftime("%Y-%m-%d %H:%M"),
@@ -269,8 +237,6 @@ results = {
     "exp4_by_color":       exp4,
     "exp5_qtable_coverage": exp5_qtable_coverage(FVMCPolicy, main_ep),
     "exp6_trials_sweep":    exp6_trials_sweep(FVMCPolicy),
-    "exp7_vs_flatmc":        exp7_vs_flatmc(FVMCPolicy, FlatMonteCarlo),
-    "exp8_vs_qlearning":     exp8_vs_qlearning(FlatMonteCarlo, QLearningAgent),
 }
 with open("results.json", "w") as f:
     json.dump(results, f, indent=2)

@@ -1,0 +1,244 @@
+{
+  "generated_at": "2026-05-25 20:36",
+  "mode": "full",
+  "exp1_learning_curve": [
+    {
+      "episodes": 0,
+      "win_pct": 0.9933333333333333,
+      "draw_pct": 0.0,
+      "loss_pct": 0.006666666666666667
+    },
+    {
+      "episodes": 5000,
+      "win_pct": 0.9866666666666667,
+      "draw_pct": 0.0,
+      "loss_pct": 0.013333333333333334
+    },
+    {
+      "episodes": 10000,
+      "win_pct": 0.9966666666666667,
+      "draw_pct": 0.0,
+      "loss_pct": 0.0033333333333333335
+    },
+    {
+      "episodes": 20000,
+      "win_pct": 0.9833333333333333,
+      "draw_pct": 0.0,
+      "loss_pct": 0.016666666666666666
+    },
+    {
+      "episodes": 40000,
+      "win_pct": 0.9866666666666667,
+      "draw_pct": 0.0,
+      "loss_pct": 0.013333333333333334
+    },
+    {
+      "episodes": 60000,
+      "win_pct": 0.99,
+      "draw_pct": 0.0,
+      "loss_pct": 0.01
+    },
+    {
+      "episodes": 80000,
+      "win_pct": 0.9966666666666667,
+      "draw_pct": 0.0,
+      "loss_pct": 0.0033333333333333335
+    },
+    {
+      "episodes": 100000,
+      "win_pct": 0.9966666666666667,
+      "draw_pct": 0.0,
+      "loss_pct": 0.0033333333333333335
+    },
+    {
+      "episodes": 120000,
+      "win_pct": 0.99,
+      "draw_pct": 0.0,
+      "loss_pct": 0.01
+    }
+  ],
+  "exp2_heuristic_w": [
+    {
+      "heuristic_w": 0.2,
+      "win_pct": 0.9833333333333333,
+      "draw_pct": 0.0,
+      "loss_pct": 0.016666666666666666
+    },
+    {
+      "heuristic_w": 0.4,
+      "win_pct": 0.9933333333333333,
+      "draw_pct": 0.0,
+      "loss_pct": 0.006666666666666667
+    },
+    {
+      "heuristic_w": 0.6,
+      "win_pct": 0.9933333333333333,
+      "draw_pct": 0.0,
+      "loss_pct": 0.006666666666666667
+    }
+  ],
+  "exp3_self_play": {
+    "red_wins": 0,
+    "yellow_wins": 400,
+    "draws": 0,
+    "red_pct": 0.0,
+    "yellow_pct": 1.0
+  },
+  "exp4_by_color": {
+    "yellow": 0.99,
+    "red": 0.98
+  },
+  "exp5_qtable_coverage": [
+    {
+      "turn": 1,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 2,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 3,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 4,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 5,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 6,
+      "coverage_pct": 1.0
+    },
+    {
+      "turn": 7,
+      "coverage_pct": 0.948
+    },
+    {
+      "turn": 8,
+      "coverage_pct": 0.984
+    },
+    {
+      "turn": 9,
+      "coverage_pct": 0.8344
+    },
+    {
+      "turn": 10,
+      "coverage_pct": 0.6056
+    },
+    {
+      "turn": 11,
+      "coverage_pct": 0.4862
+    },
+    {
+      "turn": 12,
+      "coverage_pct": 0.215
+    },
+    {
+      "turn": 13,
+      "coverage_pct": 0.1628
+    },
+    {
+      "turn": 14,
+      "coverage_pct": 0.0455
+    },
+    {
+      "turn": 15,
+      "coverage_pct": 0.0676
+    },
+    {
+      "turn": 16,
+      "coverage_pct": 0.0423
+    },
+    {
+      "turn": 17,
+      "coverage_pct": 0.0469
+    },
+    {
+      "turn": 18,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 19,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 20,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 21,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 22,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 23,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 24,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 25,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 26,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 27,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 28,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 29,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 30,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 32,
+      "coverage_pct": 0.0
+    },
+    {
+      "turn": 34,
+      "coverage_pct": 0.0
+    }
+  ],
+  "exp6_trials_sweep": [
+    {
+      "total_trials": 15000,
+      "wr_yellow": 0.9867,
+      "wr_red": 0.9733,
+      "wr_avg": 0.98,
+      "qt_size": 132769
+    },
+    {
+      "total_trials": 60000,
+      "wr_yellow": 0.9933,
+      "wr_red": 0.98,
+      "wr_avg": 0.9867,
+      "qt_size": 450000
+    },
+    {
+      "total_trials": 120000,
+      "wr_yellow": 0.98,
+      "wr_red": 0.98,
+      "wr_avg": 0.98,
+      "qt_size": 824260
+    }
+  ]
+}
